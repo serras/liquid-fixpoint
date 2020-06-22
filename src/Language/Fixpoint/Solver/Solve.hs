@@ -41,7 +41,7 @@ solve cfg fi = do
     whenLoud $ donePhase Misc.Loud "Worklist Initialize"
     vb <- getVerbosity
     (res, stat) <- (if (Quiet == vb || gradual cfg) then id else withProgressFI sI) $ runSolverM cfg sI act
-    when (solverStats cfg) $ printStats fi wkl stat
+    printStats fi wkl stat
     -- print (numIter stat)
     return res
   where
