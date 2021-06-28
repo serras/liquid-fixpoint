@@ -28,7 +28,7 @@ module Language.Fixpoint.Smt.Theories
 
 
        -- * Theories
-     , setEmpty, setEmp, setCap, setSub, setAdd, setMem
+     , setEmpty, setUniv, setEmp, setCap, setSub, setAdd, setMem
      , setCom, setCup, setDif, setSng, mapSel, mapCup, mapSto, mapDef
 
       -- * Query Theories
@@ -72,7 +72,7 @@ elt  = "Elt"
 set  = "LSet"
 map  = "Map"
 
-emp, sng, add, cup, cap, mem, dif, sub, com, sel, sto, mcup, mdef :: Raw
+emp, sng, add, cup, cap, mem, dif, sub, com, univ, sel, sto, mcup, mdef :: Raw
 emp   = "smt_set_emp"
 sng   = "smt_set_sng"
 add   = "smt_set_add"
@@ -82,13 +82,14 @@ mem   = "smt_set_mem"
 dif   = "smt_set_dif"
 sub   = "smt_set_sub"
 com   = "smt_set_com"
+univ  = "smt_set_univ"
 sel   = "smt_map_sel"
 sto   = "smt_map_sto"
 mcup  = "smt_map_cup"
 mdef  = "smt_map_def"
 
 
-setEmpty, setEmp, setCap, setSub, setAdd, setMem, setCom, setCup, setDif, setSng :: Symbol
+setEmpty, setEmp, setCap, setSub, setAdd, setMem, setCom, setCup, setDif, setSng, setUniv :: Symbol
 setEmpty = "Set_empty"
 setEmp   = "Set_emp"
 setCap   = "Set_cap"
@@ -99,6 +100,7 @@ setCom   = "Set_com"
 setCup   = "Set_cup"
 setDif   = "Set_dif"
 setSng   = "Set_sng"
+setUniv  = "Set_univ"
 
 mapSel, mapSto, mapCup, mapDef :: Symbol
 mapSel   = "Map_select"
@@ -148,6 +150,10 @@ z3Preamble u
         [] 
         (bb set) 
         (parens (key "as const" (bb set) <+> "false"))
+    , bFun univ 
+        [] 
+        (bb set) 
+        (parens (key "as const" (bb set) <+> "true"))
     , bFun sng
         [("x", bb elt)]
         (bb set)
@@ -232,7 +238,8 @@ commonPreamble _ --TODO use uif flag u (see z3Preamble)
   = [ bSort elt    "Int"
     , bSort set    "Int"
     , bSort string "Int"
-    , bFun' emp []               (bb set) 
+    , bFun' emp  []              (bb set) 
+    , bFun' univ []              (bb set) 
     , bFun' sng [bb elt]         (bb set)
     , bFun' add [bb set, bb elt] (bb set)
     , bFun' cup [bb set, bb set] (bb set)
@@ -305,7 +312,8 @@ smt2App :: VarAs -> SymEnv -> Expr -> [B.Builder] -> Maybe B.Builder
 --------------------------------------------------------------------------------
 smt2App _ _ (ECst (EVar f) _) [d]
   | f == setEmpty = Just (bb emp)
-  | f == setEmp   = Just (key2 "=" (bb emp) d)
+  | f == setEmp   = Just (key2 "=" (bb emp)  d)
+  | f == setUniv  = Just (key2 "=" (bb univ) d)
   | f == setSng   = Just (key (bb sng) d) -- Just (key2 (bb add) (bb emp) d)
 
 smt2App k env f (d:ds)
@@ -336,6 +344,7 @@ isSmt2App :: SEnv TheorySymbol -> Expr -> Maybe Int
 isSmt2App g  (EVar f)
   | f == setEmpty = Just 1
   | f == setEmp   = Just 1
+  | f == setUniv  = Just 1
   | f == setSng   = Just 1
   | otherwise     = lookupSEnv f g >>= thyAppInfo
 isSmt2App _ _     = Nothing
@@ -374,6 +383,7 @@ interpSymbols :: [(Symbol, TheorySymbol)]
 interpSymbols =
   [ interpSym setEmp   emp  (FAbs 0 $ FFunc (setSort $ FVar 0) boolSort)
   , interpSym setEmpty emp  (FAbs 0 $ FFunc intSort (setSort $ FVar 0))
+  , interpSym setUniv  emp  (FAbs 0 $ FFunc intSort (setSort $ FVar 0))
   , interpSym setSng   sng  (FAbs 0 $ FFunc (FVar 0) (setSort $ FVar 0))
   , interpSym setAdd   add   setAddSort
   , interpSym setCup   cup   setBopSort
